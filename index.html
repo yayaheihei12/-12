@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国历朝疆域变化</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'KaiTi', 'STKaiti', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            perspective: 1500px;
+        }
+
+        .title {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffd700;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            z-index: 100;
+            letter-spacing: 8px;
+        }
+
+        .map-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 600px;
+            transform-style: preserve-3d;
+            animation: rotate3d 20s infinite linear;
+        }
+
+        @keyframes rotate3d {
+            0% { transform: translate(-50%, -50%) rotateY(0deg) rotateX(5deg); }
+            100% { transform: translate(-50%, -50%) rotateY(360deg) rotateX(5deg); }
+        }
+
+        .map-container.paused {
+            animation-play-state: paused;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 0 30px rgba(255, 215, 0, 0.3));
+        }
+
+        .dynasty-info {
+            position: absolute;
+            bottom: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 100;
+            color: white;
+        }
+
+        .dynasty-name {
+            font-size: 64px;
+            color: #ffd700;
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 30px rgba(255, 215, 0, 0.8); }
+            50% { text-shadow: 0 0 50px rgba(255, 215, 0, 1); }
+        }
+
+        .dynasty-desc {
+            font-size: 24px;
+            color: #e0e0e0;
+            line-height: 1.8;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            font-family: 'KaiTi', serif;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .music-control {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            z-index: 100;
+        }
+
+        .music-btn {
+            padding: 12px 25px;
+            font-size: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .music-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .labels {
+            position: absolute;
+            font-size: 28px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.5s;
+            text-shadow: 
+                -2px -2px 0 #000,
+                2px -2px 0 #000,
+                -2px 2px 0 #000,
+                2px 2px 0 #000,
+                0 0 10px rgba(0, 0, 0, 0.8);
+        }
+
+        .labels.show {
+            opacity: 1;
+        }
+
+        .particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: rgba(255, 215, 0, 0.6);
+            border-radius: 50%;
+            animation: float 6s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles" id="particles"></div>
+    
+    <div class="container">
+        <h1 class="title">华夏疆域千年变迁</h1>
+        
+        <div class="music-control">
+            <button class="music-btn" onclick="toggleMusic()">🎵 音乐控制</button>
+            <audio id="bgMusic" loop>
+                <!-- 用户可以添加音乐文件 -->
+                <source src="" type="audio/mpeg">
+            </audio>
+        </div>
+
+        <div class="map-container" id="mapContainer">
+            <canvas id="mapCanvas" width="800" height="600"></canvas>
+        </div>
+
+        <div class="dynasty-info">
+            <div class="dynasty-name" id="dynastyName">唐朝</div>
+            <div class="dynasty-desc" id="dynastyDesc">盛世华章，疆域辽阔，四海归心</div>
+        </div>
+
+        <div class="labels" id="labels"></div>
+
+        <div class="controls">
+            <button class="btn active" onclick="showDynasty(0)">唐朝</button>
+            <button class="btn" onclick="showDynasty(1)">北宋</button>
+            <button class="btn" onclick="showDynasty(2)">元朝</button>
+            <button class="btn" onclick="autoPlay()">▶ 自动播放</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        let currentDynasty = 0;
+        let isAutoPlaying = false;
+
+        // 中国地图轮廓坐标（简化版）
+        const chinaMapOutline = [
+            // 东北部
+            {x: 580, y: 140}, {x: 600, y: 160}, {x: 620, y: 180}, {x: 630, y: 200},
+            {x: 640, y: 220}, {x: 645, y: 240}, {x: 640, y: 260}, {x: 630, y: 280},
+            // 东部海岸线
+            {x: 620, y: 300}, {x: 610, y: 320}, {x: 600, y: 340}, {x: 595, y: 360},
+            {x: 590, y: 380}, {x: 585, y: 400}, {x: 580, y: 420}, {x: 570, y: 440},
+            // 南部
+            {x: 550, y: 460}, {x: 530, y: 475}, {x: 510, y: 485}, {x: 490, y: 492},
+            {x: 470, y: 495}, {x: 450, y: 495}, {x: 430, y: 492}, {x: 410, y: 485},
+            // 西南部
+            {x: 390, y: 475}, {x: 370, y: 460}, {x: 350, y: 440}, {x: 330, y: 420},
+            {x: 310, y: 400}, {x: 290, y: 380}, {x: 270, y: 360},
+            // 西部
+            {x: 250, y: 340}, {x: 230, y: 320}, {x: 215, y: 300}, {x: 205, y: 280},
+            {x: 200, y: 260}, {x: 195, y: 240}, {x: 190, y: 220}, {x: 185, y: 200},
+            // 西北部
+            {x: 180, y: 180}, {x: 180, y: 160}, {x: 185, y: 140}, {x: 195, y: 120},
+            {x: 210, y: 105}, {x: 230, y: 95}, {x: 250, y: 90},
+            // 北部
+            {x: 280, y: 88}, {x: 310, y: 90}, {x: 340, y: 95}, {x: 370, y: 100},
+            {x: 400, y: 105}, {x: 430, y: 108}, {x: 460, y: 110}, {x: 490, y: 115},
+            {x: 520, y: 120}, {x: 550, y: 130}, {x: 580, y: 140}
+        ];
+
+        // 主要地理标志
+        const landmarks = [
+            {name: '长安', x: 350, y: 290, type: 'capital'},
+            {name: '洛阳', x: 430, y: 300, type: 'capital'},
+            {name: '开封', x: 460, y: 310, type: 'capital'},
+            {name: '大都', x: 480, y: 190, type: 'capital'},
+            {name: '黄河', x: 380, y: 240, type: 'river'},
+            {name: '长江', x: 500, y: 390, type: 'river'},
+            {name: '长城', x: 400, y: 165, type: 'wall'}
+        ];
+
+        const dynasties = [
+            {
+                name: '唐朝',
+                desc: '盛世华章，疆域辽阔，四海归心',
+                color: '#ffd700',
+                territories: [
+                    // 唐朝疆域（较大）
+                    {x: 400, y: 250, rx: 280, ry: 200},
+                    {x: 320, y: 280, rx: 100, ry: 80},
+                    {x: 500, y: 280, rx: 120, ry: 90},
+                    {x: 400, y: 380, rx: 150, ry: 100}
+                ],
+                labels: [],
+                capital: {name: '长安', x: 350, y: 290}
+            },
+            {
+                name: '北宋',
+                desc: '疆域缩减，辽金西夏并立，文治鼎盛',
+                color: '#87ceeb',
+                territories: [
+                    // 北宋疆域（较小）
+                    {x: 420, y: 300, rx: 180, ry: 140},
+                    {x: 360, y: 340, rx: 80, ry: 60},
+                    {x: 480, y: 320, rx: 90, ry: 70}
+                ],
+                labels: [
+                    {name: '辽', x: 500, y: 140, color: '#ff6b6b'},
+                    {name: '西夏', x: 230, y: 200, color: '#ff8c42'},
+                    {name: '金', x: 580, y: 170, color: '#ffd93d'}
+                ],
+                capital: {name: '开封', x: 460, y: 310}
+            },
+            {
+                name: '元朝',
+                desc: '蒙古铁骑，横扫欧亚，版图空前',
+                color: '#ff6347',
+                territories: [
+                    // 元朝疆域（巨大）
+                    {x: 400, y: 220, rx: 350, ry: 250},
+                    {x: 300, y: 280, rx: 150, ry: 120},
+                    {x: 520, y: 260, rx: 180, ry: 140},
+                    {x: 400, y: 400, rx: 200, ry: 130},
+                    {x: 250, y: 200, rx: 120, ry: 100}
+                ],
+                labels: [],
+                capital: {name: '大都', x: 480, y: 190}
+            }
+        ];
+
+        function drawBackgroundMap() {
+            // 绘制中国地图轮廓（背景）
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            chinaMapOutline.forEach((point, i) => {
+                if (i === 0) {
+                    ctx.moveTo(point.x, point.y);
+                } else {
+                    ctx.lineTo(point.x, point.y);
+                }
+            });
+            ctx.closePath();
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 填充淡淡的底色
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.fill();
+
+            // 绘制主要地理标志
+            ctx.font = 'bold 18px KaiTi';
+            ctx.textAlign = 'center';
+            
+            landmarks.forEach(mark => {
+                if (mark.type === 'capital') {
+                    // 绘制城市点
+                    ctx.beginPath();
+                    ctx.arc(mark.x, mark.y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(200, 200, 200, 0.6)';
+                    ctx.fill();
+                    // 黑色描边，白色填充
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 3;
+                    ctx.strokeText(mark.name, mark.x, mark.y - 10);
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(mark.name, mark.x, mark.y - 10);
+                } else if (mark.type === 'river') {
+                    // 绘制河流标注
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 3;
+                    ctx.strokeText(mark.name, mark.x, mark.y);
+                    ctx.fillStyle = '#87ceeb';
+                    ctx.fillText(mark.name, mark.x, mark.y);
+                } else if (mark.type === 'wall') {
+                    // 绘制长城
+                    ctx.strokeStyle = 'rgba(180, 140, 100, 0.4)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(200, mark.y);
+                    ctx.quadraticCurveTo(300, mark.y - 20, 400, mark.y);
+                    ctx.quadraticCurveTo(500, mark.y - 20, 600, mark.y);
+                    ctx.stroke();
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 3;
+                    ctx.strokeText(mark.name, mark.x, mark.y - 15);
+                    ctx.fillStyle = '#d4a574';
+                    ctx.fillText(mark.name, mark.x, mark.y - 15);
+                }
+            });
+        }
+
+        function drawMap(dynasty, progress = 1) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 先绘制背景地图
+            drawBackgroundMap();
+            
+            const currentData = dynasties[dynasty];
+            const gradient = ctx.createRadialGradient(400, 300, 50, 400, 300, 300);
+            gradient.addColorStop(0, currentData.color + 'aa');
+            gradient.addColorStop(0.7, currentData.color + '44');
+            gradient.addColorStop(1, currentData.color + '11');
+            
+            ctx.fillStyle = gradient;
+            
+            currentData.territories.forEach((territory, i) => {
+                ctx.beginPath();
+                const currentRx = territory.rx * progress;
+                const currentRy = territory.ry * progress;
+                ctx.ellipse(territory.x, territory.y, currentRx, currentRy, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 边框
+                ctx.strokeStyle = currentData.color;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // 发光效果
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = currentData.color;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            });
+
+            // 绘制都城标记
+            if (currentData.capital && progress > 0.5) {
+                ctx.beginPath();
+                ctx.arc(currentData.capital.x, currentData.capital.y, 10, 0, Math.PI * 2);
+                ctx.fillStyle = currentData.color;
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // 都城名称
+                ctx.font = 'bold 22px KaiTi';
+                ctx.textAlign = 'center';
+                // 黑色描边
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 4;
+                ctx.strokeText('★ ' + currentData.capital.name, currentData.capital.x, currentData.capital.y - 20);
+                // 白色填充
+                ctx.fillStyle = 'white';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = currentData.color;
+                ctx.fillText('★ ' + currentData.capital.name, currentData.capital.x, currentData.capital.y - 20);
+                ctx.shadowBlur = 0;
+            }
+
+            // 绘制标注
+            const labelsDiv = document.getElementById('labels');
+            labelsDiv.innerHTML = '';
+            if (progress > 0.8) {
+                currentData.labels.forEach(label => {
+                    const labelEl = document.createElement('div');
+                    labelEl.textContent = label.name;
+                    labelEl.style.position = 'absolute';
+                    labelEl.style.left = label.x + 'px';
+                    labelEl.style.top = label.y + 'px';
+                    labelEl.style.color = label.color;
+                    labelEl.style.fontSize = '32px';
+                    labelEl.style.fontWeight = 'bold';
+                    labelEl.style.textShadow = `-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 0 15px ${label.color}`;
+                    labelEl.style.fontFamily = 'KaiTi, STKaiti, serif';
+                    labelsDiv.appendChild(labelEl);
+                });
+                labelsDiv.classList.add('show');
+            } else {
+                labelsDiv.classList.remove('show');
+            }
+        }
+
+        function animateTransition(fromDynasty, toDynasty) {
+            let progress = 0;
+            const duration = 2000;
+            const startTime = Date.now();
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                progress = Math.min(elapsed / duration, 1);
+                
+                // 缓动函数
+                const eased = progress < 0.5 
+                    ? 2 * progress * progress 
+                    : -1 + (4 - 2 * progress) * progress;
+                
+                drawMap(toDynasty, eased);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            }
+            
+            animate();
+        }
+
+        function showDynasty(index) {
+            if (index === currentDynasty) return;
+            
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach((btn, i) => {
+                if (i === index) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            animateTransition(currentDynasty, index);
+            currentDynasty = index;
+            
+            const dynastyData = dynasties[index];
+            document.getElementById('dynastyName').textContent = dynastyData.name;
+            document.getElementById('dynastyDesc').textContent = dynastyData.desc;
+        }
+
+        function autoPlay() {
+            isAutoPlaying = !isAutoPlaying;
+            
+            if (isAutoPlaying) {
+                let index = 0;
+                const interval = setInterval(() => {
+                    if (!isAutoPlaying) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    showDynasty(index);
+                    index = (index + 1) % 3;
+                }, 4000);
+            }
+        }
+
+        function toggleMusic() {
+            const audio = document.getElementById('bgMusic');
+            if (audio.paused) {
+                audio.play().catch(e => {
+                    alert('请先添加音乐文件路径到audio标签的src属性');
+                });
+            } else {
+                audio.pause();
+            }
+        }
+
+        // 创建粒子效果
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 6 + 's';
+                particle.style.animationDuration = (Math.random() * 4 + 4) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // 初始化
+        drawMap(0, 1);
+        createParticles();
+
+        // 鼠标悬停暂停旋转
+        const mapContainer = document.getElementById('mapContainer');
+        mapContainer.addEventListener('mouseenter', () => {
+            mapContainer.classList.add('paused');
+        });
+        mapContainer.addEventListener('mouseleave', () => {
+            mapContainer.classList.remove('paused');
+        });
+    </script>
+</body>
+</html>
